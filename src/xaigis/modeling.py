@@ -81,6 +81,7 @@ def predict_rasters(cfg: dict[str, Any]) -> dict[str, Any]:
     pcfg = cfg["prediction"]
     threshold = float(tcfg.get("threshold", 0.8))
     tile_size = int(pcfg.get("tile_size", 512))
+    exclude_nodata = bool(pcfg.get("exclude_nodata", True))
 
     stack_tif = paths["feature_stack_tif"]
     models_dir = paths["models_dir"]
@@ -122,6 +123,7 @@ def predict_rasters(cfg: dict[str, Any]) -> dict[str, Any]:
             mask_path = out_dir / f"pred_{name}_thresh{int(threshold * 100):02d}.tif"
 
             print(f"[predict] running {name} on raster (C={channels}, H={height}, W={width})")
+            print(f"[predict] exclude_nodata={exclude_nodata}, nodata={src.nodata}")
             with rio.open(prob_path, "w", **prob_profile) as dst_prob, rio.open(
                 mask_path, "w", **mask_profile
             ) as dst_mask:
@@ -131,7 +133,10 @@ def predict_rasters(cfg: dict[str, Any]) -> dict[str, Any]:
                         w = min(tile_size, width - col)
                         window = Window(col_off=col, row_off=row, width=w, height=h)
                         patch = src.read(window=window).astype(np.float32)  # (C,h,w)
-                        valid = np.isfinite(patch).all(axis=0)              # (h,w)
+                        finite_valid = np.isfinite(patch).all(axis=0)       # (h,w)
+                        valid = finite_valid
+                        if exclude_nodata:
+                            valid &= ~_nodata_any(patch, src.nodatavals)
 
                         prob_patch = np.full((h, w), -9999.0, dtype=np.float32)
                         if np.any(valid):
@@ -270,3 +275,18 @@ def _calc_metrics(y_true: np.ndarray, prob: np.ndarray, pred: np.ndarray) -> dic
         "f1": f1,
         "confusion_matrix": cm,
     }
+
+
+def _nodata_any(x_patch: np.ndarray, nodatavals: tuple[Any, ...] | list[Any]) -> np.ndarray:
+    nodata_any = np.zeros(x_patch.shape[1:], dtype=bool)
+    for band_idx, nodata in enumerate(nodatavals):
+        if nodata is None:
+            continue
+        try:
+            nodata_float = float(nodata)
+        except (TypeError, ValueError):
+            continue
+        if np.isnan(nodata_float):
+            continue
+        nodata_any |= x_patch[band_idx] == nodata_float
+    return nodata_any

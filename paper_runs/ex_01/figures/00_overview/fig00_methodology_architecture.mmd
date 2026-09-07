@@ -1,0 +1,92 @@
+%%{init: {"theme": "base", "themeVariables": {"background": "#ffffff", "primaryColor": "#f8fafc", "primaryTextColor": "#111827", "primaryBorderColor": "#475569", "lineColor": "#334155", "fontFamily": "Inter, Arial, sans-serif", "clusterBkg": "#ffffff", "clusterBorder": "#cbd5e1", "edgeLabelBackground": "#ffffff"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 42, "rankSpacing": 58}}}%%
+flowchart TB
+    title["<b>Leakage-aware natural hydrogen prospectivity workflow</b><br/>Northern Kazakhstan, 30 m multisource screening study"]
+
+    subgraph A["1. Observed evidence"]
+        direction LR
+        dem["<b>SRTM DEM</b><br/>30 m terrain grid"]
+        optical["<b>Sentinel-2 + Landsat-8</b><br/>coverage-controlled optical composites<br/>RGB bands + NDVI"]
+        priors["<b>Independent priors</b><br/>DEM lineaments, GLiM lithology,<br/>GEM active-fault distance/density"]
+        sites["<b>Six reported H2 anomaly sites</b><br/>Aksu, Atbasar, Chistopoloe,<br/>Saumankol, Shchuchinsk, Suvorovka"]
+        dem ~~~ optical ~~~ priors ~~~ sites
+    end
+
+    subgraph B["2. Stack construction and QA"]
+        direction LR
+        align["<b>Common raster frame</b><br/>all sources aligned to the<br/>30 m DEM grid"]
+        features["<b>33-band feature vector</b><br/>terrain 7 / optical 10 / lineament 3<br/>lithology 11 / fault 2"]
+        nodata["<b>Strict NoData gate</b><br/>use only pixels finite in every band<br/>no synthetic fill"]
+        coverage["<b>Coverage audit</b><br/>positive AOIs must pass<br/>strict-valid coverage checks"]
+    end
+
+    subgraph C["3. Proxy labels and local background"]
+        direction LR
+        proxy["<b>Proxy AOI polygons</b><br/>positive label if pixel center<br/>falls inside a reported-site AOI"]
+        background["<b>Local background windows</b><br/>near-site negatives after excluding<br/>all proxy AOIs"]
+        sample["<b>Site samples</b><br/>up to 20k positive + 40k background<br/>per site after strict NoData filtering"]
+    end
+
+    subgraph D["4. Leakage-aware model evaluation"]
+        direction LR
+        loso["<b>Outer leave-one-site-out</b><br/>train on five sites,<br/>test on one untouched site"]
+        models["<b>Candidate models</b><br/>SGD logistic, Random Forest,<br/>XGBoost, LightGBM"]
+        metrics["<b>Transfer metrics</b><br/>pooled ROC-AUC, PR-AUC,<br/>F1, top-5% precision"]
+        selection["<b>Selection rule</b><br/>SGD primary transfer model;<br/>RF retained as ranking sensitivity model"]
+    end
+
+    subgraph E["5. Nested tuning and calibration"]
+        direction LR
+        inner["<b>Inner leave-one-site-out</b><br/>thresholds and calibrators fitted<br/>inside training sites only"]
+        threshold["<b>Threshold tuning</b><br/>choose tau by inner-fold F1;<br/>apply once to held-out site"]
+        platt["<b>Platt calibration</b><br/>turn SGD score into calibrated<br/>prospectivity score for the sampled labels"]
+        topk["<b>RF top-k zones</b><br/>quantile ranking masks:<br/>top 1%, top 5%, top 10%"]
+    end
+
+    subgraph F["6. Final map products and interpretation"]
+        direction LR
+        finalfit["<b>Final refit</b><br/>SGD, Platt calibrator, and RF<br/>trained on all strict-valid site samples"]
+        stream["<b>Tile-stream prediction</b><br/>21,971,235 strict-valid raster pixels scored"]
+        outputs["<b>Outputs</b><br/>SGD Platt prospectivity raster,<br/>RF ranking score, RF top-k zones,<br/>strict-valid mask"]
+        figures["<b>Manuscript evidence</b><br/>overview, input scenes, coverage audit,<br/>validation summary, final site review"]
+        followup["<b>Use case</b><br/>field follow-up prioritization;<br/>not confirmed hydrogen detection"]
+    end
+
+    title --> dem
+    dem --> align
+    optical --> align
+    priors --> align
+    sites --> proxy
+    align --> features --> nodata --> coverage
+    coverage --> proxy
+    proxy --> sample
+    background --> sample
+    sample --> loso
+    features --> loso
+    loso --> models --> metrics --> selection
+    selection --> inner
+    inner --> threshold
+    inner --> platt
+    selection --> topk
+    threshold --> finalfit
+    platt --> finalfit
+    topk --> finalfit
+    finalfit --> stream --> outputs --> figures --> followup
+
+    loso -. "prevents spatial leakage" .-> metrics
+    outputs -. "screening language only" .-> followup
+
+    classDef title fill:#0f172a,stroke:#0f172a,color:#ffffff,stroke-width:2px;
+    classDef source fill:#e0f2fe,stroke:#0369a1,color:#0c4a6e,stroke-width:1.4px;
+    classDef qa fill:#ecfdf5,stroke:#047857,color:#064e3b,stroke-width:1.4px;
+    classDef labels fill:#fef3c7,stroke:#b45309,color:#78350f,stroke-width:1.4px;
+    classDef eval fill:#f3e8ff,stroke:#7e22ce,color:#581c87,stroke-width:1.4px;
+    classDef tune fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d,stroke-width:1.4px;
+    classDef out fill:#e2e8f0,stroke:#334155,color:#0f172a,stroke-width:1.4px;
+
+    class title title;
+    class dem,optical,priors,sites source;
+    class align,features,nodata,coverage qa;
+    class proxy,background,sample labels;
+    class loso,models,metrics,selection eval;
+    class inner,threshold,platt,topk tune;
+    class finalfit,stream,outputs,figures,followup out;

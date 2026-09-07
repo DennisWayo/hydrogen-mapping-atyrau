@@ -1,6 +1,28 @@
 # Paper Runs
 
-This directory stores the South Kazakhstan paper snapshot: configs, AOI/labels, Copernicus query exports, and generated outputs.
+This directory stores manuscript-specific paper-run bundles that are small
+enough to keep with the repository.
+
+## Included
+
+- South Kazakhstan archived paper snapshot: configs, AOI/labels, Copernicus
+  query exports, and generated outputs.
+- `ex_01/` - Northern Kazakhstan leakage-aware natural-hydrogen
+  prospectivity-screening study, small figure pack, tables, and
+  reproducibility scripts.
+
+## Excluded
+
+Large runtime products are intentionally not tracked:
+
+- raw Sentinel/Landsat/DEM rasters
+- generated GeoTIFF feature stacks
+- model binaries
+- sampled datasets
+- temporary run outputs
+
+These products can be regenerated or transferred locally when needed, but they
+should not be pushed to GitHub.
 
 ## What is reproducible here
 

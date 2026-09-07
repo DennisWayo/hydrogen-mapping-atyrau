@@ -12,8 +12,11 @@ __pycache__/
 build/
 dist/
 .venv/
+.venv*/
 .pytest_cache/
 .mypy_cache/
+.docx_edit/
+flowchart_env/
 
 # Local env/config
 .env
@@ -43,3 +46,6 @@ figures/
 *.gnuplot
 *.docx
 *.pdf
+*.pptx
+xaipen.bib
+scripts/generate_xaigis_presentation.py

@@ -44,7 +44,13 @@ def rasterize_labels(cfg: dict[str, Any]) -> dict[str, Any]:
         dtype=np.uint8,
     )
 
-    profile.update(count=1, dtype="uint8", compress="deflate", BIGTIFF="YES")
+    profile.update(
+        count=1,
+        dtype="uint8",
+        nodata=0,
+        compress="deflate",
+        BIGTIFF="YES",
+    )
     with rio.open(label_tif, "w", **profile) as dst:
         dst.write(label, 1)
         dst.set_band_description(1, "label")
